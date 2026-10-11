@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LOUB Auction Clerk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1B2A4A; --cream:#FBF6EC; --card:#FFFFFF; --gold:#C9A227;
+    --burgundy:#7A2E2E; --forest:#3F6B4F; --charcoal:#2B2B26; --line:#E4DCC8; --muted:#8A8272;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--cream); color:var(--charcoal); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; }
+  header{ background:var(--ink); color:var(--cream); padding:24px 20px 18px; text-align:center; position:relative; }
+  header::after{ content:""; position:absolute; left:0;right:0;bottom:0; height:4px; background:linear-gradient(90deg,var(--gold),var(--burgundy),var(--forest)); }
+  header h1{ font-family:'Fraunces',serif; font-weight:700; font-size:clamp(24px,4vw,36px); margin:0 0 4px; }
+  header p{ margin:0; opacity:0.75; font-size:13px; letter-spacing:0.5px; text-transform:uppercase; }
+  .sync-chip{ display:inline-flex; align-items:center; gap:6px; margin-top:10px; padding:5px 12px; border-radius:999px; font-size:12px; font-weight:600; background:rgba(255,255,255,0.1); }
+  .dot{ width:8px; height:8px; border-radius:50%; }
+  .dot.ok{ background:#5FBF7A; box-shadow:0 0 0 3px rgba(95,191,122,0.25); }
+  .dot.wait{ background:#E0B84B; }
+  .dot.bad{ background:#D96458; }
+  nav{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; padding:14px; background:var(--card); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:10; }
+  nav button{ font-family:'Inter',sans-serif; font-weight:600; font-size:14px; padding:9px 16px; border-radius:999px; border:1.5px solid var(--line); background:transparent; color:var(--charcoal); cursor:pointer; }
+  nav button.active{ background:var(--ink); border-color:var(--ink); color:var(--cream); }
+  main{ max-width:900px; margin:0 auto; padding:22px 16px 80px; }
+  .panel{display:none;} .panel.active{display:block;}
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; margin-bottom:18px; }
+  .card h2{ font-family:'Fraunces',serif; font-size:19px; margin:0 0 4px; color:var(--ink); }
+  .card .sub{ font-size:13px; color:var(--muted); margin-bottom:14px; }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+  .field{ display:flex; flex-direction:column; gap:5px; flex:1; min-width:120px; }
+  .field label{ font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; }
+  input, select, textarea{ font-family:'Inter',sans-serif; font-size:16px; padding:11px 12px; border-radius:8px; border:1.5px solid var(--line); background:var(--cream); color:var(--charcoal); width:100%; }
+  .btn{ font-family:'Inter',sans-serif; font-weight:700; font-size:15px; padding:12px 20px; border-radius:8px; border:none; cursor:pointer; color:#fff; white-space:nowrap; }
+  .btn:disabled{ opacity:0.5; cursor:not-allowed; }
+  .btn-ink{background:var(--ink);} .btn-burgundy{background:var(--burgundy);} .btn-forest{background:var(--forest);}
+  .btn-gold{background:var(--gold); color:var(--ink);}
+  .btn-ghost{background:transparent; color:var(--burgundy); border:1.5px solid var(--burgundy); padding:6px 12px; font-size:13px;}
+  table{ width:100%; border-collapse:collapse; margin-top:6px; font-size:14px; }
+  th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.4px; color:var(--muted); padding:8px 10px; border-bottom:2px solid var(--line); }
+  td{ padding:10px; border-bottom:1px solid var(--line); }
+  .empty{ text-align:center; color:var(--muted); font-style:italic; padding:22px 0; }
+  .badge{ display:inline-block; font-family:'Fraunces',serif; font-weight:700; background:var(--ink); color:var(--cream); border-radius:8px; padding:3px 10px; font-size:14px; }
+  .tag-paid{ display:inline-block; font-size:11px; font-weight:700; text-transform:uppercase; padding:3px 9px; border-radius:5px; background:#E1EBE4; color:var(--forest); }
+  .tag-unpaid{ display:inline-block; font-size:11px; font-weight:700; text-transform:uppercase; padding:3px 9px; border-radius:5px; background:#F5E2E2; color:var(--burgundy); }
+  .tag-live{ display:inline-block; font-size:11px; font-weight:700; text-transform:uppercase; padding:3px 9px; border-radius:5px; background:#F5E2E2; color:var(--burgundy); }
+  .tag-silent{ display:inline-block; font-size:11px; font-weight:700; text-transform:uppercase; padding:3px 9px; border-radius:5px; background:#E1EBE4; color:var(--forest); }
+  .pay-btn{ font-family:'Inter',sans-serif; font-weight:700; font-size:12px; padding:5px 10px; border-radius:6px; border:none; cursor:pointer; color:#fff; }
+  .pay-btn.mark-paid{ background:var(--forest); }
+  .pay-btn.mark-unpaid{ background:var(--muted); }
+  .lot-hint{ font-size:12px; color:var(--muted); margin-top:4px; min-height:16px; }
+  .lot-hint.found{ color:var(--forest); font-weight:600; }
+  .lookup-result{ background:var(--ink); color:var(--cream); border-radius:14px; padding:22px; margin-top:14px; }
+  .lookup-result .grand{ font-family:'Fraunces',serif; font-size:40px; font-weight:700; color:var(--gold); margin:4px 0 2px; }
+  .lookup-result .line{ display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.15); font-size:14px; }
+  .totals-strip{ display:flex; gap:14px; flex-wrap:wrap; margin-bottom:18px; }
+  .stat{ flex:1; min-width:130px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .stat .num{ font-family:'Fraunces',serif; font-size:24px; font-weight:700; color:var(--ink); }
+  .stat .label{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; }
+  .del-btn{ background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; text-decoration:underline; }
+  .del-btn:hover{ color:var(--burgundy); }
+  .banner{ background:#FBEFD2; border:1px solid var(--gold); color:#5c4a12; border-radius:10px; padding:12px 14px; font-size:13px; margin-bottom:16px; }
+  .banner.bad{ background:#FBE4E0; border-color:var(--burgundy); color:var(--burgundy); }
+  footer{ text-align:center; padding:18px; font-size:12px; color:var(--muted); }
+  @media(max-width:600px){ .row{flex-direction:column; align-items:stretch;} }
+  #toast-stack{ position:fixed; left:0; right:0; bottom:0; display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px; z-index:1000; pointer-events:none; }
+  .toast{ max-width:480px; width:calc(100% - 24px); background:var(--ink); color:var(--cream); border-radius:10px; padding:12px 16px; font-size:14px; box-shadow:0 6px 20px rgba(0,0,0,0.25); pointer-events:auto; }
+  .toast.error{ background:var(--burgundy); } .toast.ok{ background:var(--forest); }
+  #modal-overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:1001; padding:20px; }
+  #modal-overlay.show{ display:flex; }
+  .modal-box{ background:var(--card); border-radius:14px; padding:22px; max-width:400px; width:100%; }
+  .modal-box p{ font-size:15px; margin:0 0 18px; color:var(--charcoal); }
+  .modal-box .row{ justify-content:flex-end; }
+  .modal-box .btn-cancel{ background:var(--line); color:var(--charcoal); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>LOUB Auction Clerk</h1>
+  <p>Banquet &amp; Auction — Live Bidder Ledger</p>
+  <div class="sync-chip"><span class="dot wait" id="sync-dot"></span><span id="sync-text">Connecting…</span></div>
+</header>
+
+<nav>
+  <button data-tab="checkin" class="active">Check-In</button>
+  <button data-tab="lots">Lots</button>
+  <button data-tab="live">Live Auction</button>
+  <button data-tab="silent">Silent Auction</button>
+  <button data-tab="lookup">Bidder Totals</button>
+  <button data-tab="export">Export</button>
+</nav>
+
+<main>
+  <div class="banner bad" id="setup-banner" style="display:none;">
+    This page isn't connected to a database yet. If you're the one setting this up, open this file and paste your Firebase config into the spot marked <code>PASTE YOUR FIREBASE CONFIG HERE</code> near the bottom.
+  </div>
+
+  <div class="panel active" id="panel-checkin">
+    <div class="card">
+      <h2>Bidder Check-In</h2>
+      <div class="sub">Assign a number as each bidder arrives. Works from any device — everyone sees it instantly.</div>
+      <div class="row">
+        <div class="field"><label>Bidder Number</label><input type="text" id="ci-number" inputmode="numeric" placeholder="e.g. 101"></div>
+        <div class="field" style="flex:2;"><label>Name (optional)</label><input type="text" id="ci-name" placeholder="e.g. Sam &amp; Jamie Carter"></div>
+        <button class="btn btn-ink" id="ci-add">Check In</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Checked-In Bidders</h2>
+      <div class="sub" id="ci-count">No bidders yet</div>
+      <table id="ci-table"><thead><tr><th>#</th><th>Name</th><th></th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-lots">
+    <div class="card">
+      <h2>Pre-Enter Lots</h2>
+      <div class="sub">Load all your lot numbers and names ahead of time, so during the event you only need bidder # and price.</div>
+      <div class="row">
+        <div class="field" style="max-width:120px;"><label>Lot #</label><input type="text" id="lt-num" placeholder="1"></div>
+        <div class="field" style="flex:2;"><label>Lot Name</label><input type="text" id="lt-name" placeholder="Weekend Cabin Getaway"></div>
+        <div class="field" style="max-width:130px;"><label>Auction Type</label><select id="lt-type"><option value="live">Live</option><option value="silent">Silent</option></select></div>
+        <button class="btn btn-ink" id="lt-add">Add Lot</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Bulk Paste</h2>
+      <div class="sub">One lot per line, as "Lot #, Lot Name". Pick the type first, then paste.</div>
+      <div class="row">
+        <div class="field" style="max-width:150px;"><label>These are all</label><select id="lt-bulk-type"><option value="live">Live lots</option><option value="silent">Silent lots</option></select></div>
+      </div>
+      <div class="row" style="margin-top:10px;"><textarea id="lt-bulk" rows="6" placeholder="1, Weekend Cabin Getaway&#10;2, Signed Jersey&#10;3, Dinner for Four"></textarea></div>
+      <div class="row" style="margin-top:10px;"><button class="btn btn-forest" id="lt-bulk-add">Add These Lots</button></div>
+      <div id="lt-bulk-result" style="margin-top:8px; font-size:14px;"></div>
+    </div>
+    <div class="card">
+      <h2>All Pre-Entered Lots</h2>
+      <div class="sub" id="lt-count">No lots entered yet</div>
+      <table id="lt-table"><thead><tr><th>Lot</th><th>Name</th><th>Type</th><th></th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-live">
+    <div class="card">
+      <h2>Record a Live Sale</h2>
+      <div class="sub">Type the lot number — if it was pre-entered, the name fills in automatically.</div>
+      <div class="row">
+        <div class="field" style="max-width:100px;"><label>Lot #</label><input type="text" id="lv-lot" placeholder="1"><div class="lot-hint" id="lv-lot-hint"></div></div>
+        <div class="field" style="flex:2;"><label>Lot Name</label><input type="text" id="lv-lotname" placeholder="Weekend Cabin Getaway"></div>
+        <div class="field" style="max-width:120px;"><label>Bidder #</label><input type="text" id="lv-bidder" inputmode="numeric" placeholder="101"></div>
+        <div class="field" style="max-width:130px;"><label>Hammer Price ($)</label><input type="text" id="lv-amount" inputmode="decimal" placeholder="250"></div>
+        <button class="btn btn-burgundy" id="lv-add">Record Sale</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Live Auction Log</h2>
+      <div class="sub" id="lv-count">No live sales yet</div>
+      <table id="lv-table"><thead><tr><th>Lot</th><th>Bidder</th><th>Amount</th><th></th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-silent">
+    <div class="card">
+      <h2>Record a Silent Auction Result</h2>
+      <div class="sub">Type the lot number — if it was pre-entered, the name fills in automatically.</div>
+      <div class="row">
+        <div class="field" style="max-width:100px;"><label>Lot #</label><input type="text" id="sl-lot" placeholder="S1"><div class="lot-hint" id="sl-lot-hint"></div></div>
+        <div class="field" style="flex:2;"><label>Lot Name</label><input type="text" id="sl-lotname" placeholder="Gift Basket"></div>
+        <div class="field" style="max-width:120px;"><label>Bidder #</label><input type="text" id="sl-bidder" inputmode="numeric" placeholder="101"></div>
+        <div class="field" style="max-width:130px;"><label>Winning Bid ($)</label><input type="text" id="sl-amount" inputmode="decimal" placeholder="45"></div>
+        <button class="btn btn-forest" id="sl-add">Record Result</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Silent Auction Log</h2>
+      <div class="sub" id="sl-count">No silent results yet</div>
+      <table id="sl-table"><thead><tr><th>Lot</th><th>Bidder</th><th>Amount</th><th></th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-lookup">
+    <div class="totals-strip">
+      <div class="stat"><div class="num" id="stat-bidders">0</div><div class="label">Bidders Checked In</div></div>
+      <div class="stat"><div class="num" id="stat-lots">0</div><div class="label">Lots Sold</div></div>
+      <div class="stat"><div class="num" id="stat-total">$0</div><div class="label">Total Raised</div></div>
+    </div>
+    <div class="card">
+      <h2>Checkout Lookup</h2>
+      <div class="sub">Look up any bidder to see their combined live + silent total.</div>
+      <div class="row">
+        <div class="field"><label>Bidder Number</label><input type="text" id="lk-number" inputmode="numeric" placeholder="101"></div>
+        <button class="btn btn-gold" id="lk-search">Look Up</button>
+      </div>
+      <div id="lk-result"></div>
+    </div>
+    <div class="card">
+      <h2>All Bidder Totals</h2>
+      <table id="tot-table"><thead><tr><th>#</th><th>Name</th><th>Live</th><th>Silent</th><th>Total</th><th>Paid</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-export">
+    <div class="card">
+      <h2>Export Records</h2>
+      <div class="sub">Download a spreadsheet (CSV) of everything recorded so far.</div>
+      <div class="row">
+        <button class="btn btn-ink" id="ex-totals">Download Bidder Totals</button>
+        <button class="btn btn-burgundy" id="ex-live">Download Live Auction Log</button>
+        <button class="btn btn-forest" id="ex-silent">Download Silent Auction Log</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Reset</h2>
+      <div class="sub">Clears all data for EVERY device connected to this page. Only use after the event is fully closed out and exported.</div>
+      <button class="btn btn-ghost" id="reset-all">Clear All Data</button>
+    </div>
+  </div>
+</main>
+
+<footer>All devices viewing this page share the same live data.</footer>
+
+<div id="toast-stack"></div>
+<div id="modal-overlay">
+  <div class="modal-box">
+    <p id="modal-text"></p>
+    <div class="row">
+      <button class="btn btn-cancel" id="modal-cancel">Cancel</button>
+      <button class="btn btn-burgundy" id="modal-ok">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase (free tier) powers the live multi-device sync -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+// =====================================================================
+// PASTE YOUR FIREBASE CONFIG HERE — replace the object below with the
+// one Firebase gives you when you register a Web App in your project.
+// =====================================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyCithchjByNnT3C2Jo2VyJ32lxjgFhJDDk",
+  authDomain: "loub-auction-2026.firebaseapp.com",
+  projectId: "loub-auction-2026",
+  storageBucket: "loub-auction-2026.firebasestorage.app",
+  messagingSenderId: "156695027689",
+  appId: "1:156695027689:web:9f7115af7bb1b839ba7578",
+  measurementId: "G-97F7WVPCQW"
+};
+// =====================================================================
+
+let db = null;
+const state = { bidders: {}, live: [], silent: [], lots: {} };
+
+function money(n){ return '$' + Number(n).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}); }
+function setSync(mode, text){
+  document.getElementById('sync-dot').className = 'dot ' + mode;
+  document.getElementById('sync-text').textContent = text;
+}
+function showToast(message, type){
+  const stack = document.getElementById('toast-stack');
+  const t = document.createElement('div');
+  t.className = 'toast' + (type ? ' ' + type : '');
+  t.textContent = message;
+  stack.appendChild(t);
+  setTimeout(()=>{ t.remove(); }, 6000);
+}
+function customConfirm(message){
+  return new Promise(resolve=>{
+    const overlay = document.getElementById('modal-overlay');
+    document.getElementById('modal-text').textContent = message;
+    overlay.classList.add('show');
+    const okBtn = document.getElementById('modal-ok');
+    const cancelBtn = document.getElementById('modal-cancel');
+    function cleanup(result){
+      overlay.classList.remove('show');
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      resolve(result);
+    }
+    function onOk(){ cleanup(true); }
+    function onCancel(){ cleanup(false); }
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+  });
+}
+function handleWriteError(e){
+  console.error('LOUB write error:', e);
+  showToast('Could not save: ' + (e && e.message ? e.message : e), 'error');
+}
+
+document.querySelectorAll('nav button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+function init(){
+  if(!firebaseConfig.apiKey || firebaseConfig.apiKey === "YOUR_API_KEY"){
+    setSync('bad', 'Not set up yet');
+    document.getElementById('setup-banner').style.display = 'block';
+    return;
+  }
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+
+  let gotFirst = { bidders:false, live:false, silent:false, lots:false };
+  function checkFirstLoad(){
+    if(gotFirst.bidders && gotFirst.live && gotFirst.silent && gotFirst.lots) setSync('ok', 'Live — synced across devices');
+  }
+
+  db.collection('bidders').onSnapshot(snap=>{
+    const next = {}; snap.forEach(d=> next[d.id] = d.data() || {});
+    state.bidders = next; gotFirst.bidders = true; checkFirstLoad(); renderAll();
+  }, err=>{ setSync('bad', 'Sync error: ' + err.message); });
+
+  db.collection('live').onSnapshot(snap=>{
+    state.live = []; snap.forEach(d=> state.live.push({ id: d.id, ...(d.data()||{}) }));
+    gotFirst.live = true; checkFirstLoad(); renderAll();
+  }, err=>{ setSync('bad', 'Sync error: ' + err.message); });
+
+  db.collection('silent').onSnapshot(snap=>{
+    state.silent = []; snap.forEach(d=> state.silent.push({ id: d.id, ...(d.data()||{}) }));
+    gotFirst.silent = true; checkFirstLoad(); renderAll();
+  }, err=>{ setSync('bad', 'Sync error: ' + err.message); });
+
+  db.collection('lots').onSnapshot(snap=>{
+    const next = {}; snap.forEach(d=> next[d.id] = d.data() || {});
+    state.lots = next; gotFirst.lots = true; checkFirstLoad(); renderAll();
+  }, err=>{ setSync('bad', 'Sync error: ' + err.message); });
+}
+
+async function ensureBidderDoc(num, name){
+  num = String(num).trim();
+  if(!num) return null;
+  const ref = db.collection('bidders').doc(num);
+  if(name){ await ref.set({ name }, { merge: true }); }
+  else if(!state.bidders[num]){ await ref.set({ name: '' }, { merge: true }); }
+  return num;
+}
+
+// ---- CHECK-IN ----
+document.getElementById('ci-add').addEventListener('click', async ()=>{
+  const num = document.getElementById('ci-number').value.trim();
+  const name = document.getElementById('ci-name').value.trim();
+  if(!num){ showToast('Enter a bidder number.'); return; }
+  try{
+    await ensureBidderDoc(num, name);
+    document.getElementById('ci-number').value=''; document.getElementById('ci-name').value='';
+    document.getElementById('ci-number').focus();
+    showToast('Checked in bidder #' + num, 'ok');
+  }catch(e){ handleWriteError(e); }
+});
+function renderCheckin(){
+  const rows = Object.entries(state.bidders).sort((a,b)=> Number(a[0])-Number(b[0]));
+  const tbody = document.querySelector('#ci-table tbody');
+  tbody.innerHTML = rows.map(([num,b])=>
+    `<tr><td><span class="badge">${num}</span></td><td>${b.name||'<span style="color:var(--muted)">—</span>'}</td>
+     <td><button class="del-btn" onclick="deleteBidder('${num}')">remove</button></td></tr>`
+  ).join('');
+  document.getElementById('ci-count').textContent = rows.length ? rows.length+' bidder(s) checked in' : 'No bidders yet';
+  if(!rows.length) tbody.innerHTML = '<tr><td colspan="3" class="empty">No bidders checked in yet</td></tr>';
+}
+async function deleteBidder(num){
+  if(!(await customConfirm('Remove bidder #'+num+'? This does not remove their recorded sales.'))) return;
+  try{ await db.collection('bidders').doc(num).delete(); }catch(e){ handleWriteError(e); }
+}
+
+// ---- LOTS ----
+document.getElementById('lt-add').addEventListener('click', async ()=>{
+  const num = document.getElementById('lt-num').value.trim();
+  const name = document.getElementById('lt-name').value.trim();
+  const type = document.getElementById('lt-type').value;
+  if(!num){ showToast('Enter a lot number.'); return; }
+  try{
+    await db.collection('lots').doc(num).set({ name, type });
+    document.getElementById('lt-num').value=''; document.getElementById('lt-name').value='';
+    document.getElementById('lt-num').focus();
+    showToast('Lot ' + num + ' added', 'ok');
+  }catch(e){ handleWriteError(e); }
+});
+document.getElementById('lt-bulk-add').addEventListener('click', async ()=>{
+  const type = document.getElementById('lt-bulk-type').value;
+  const lines = document.getElementById('lt-bulk').value.split('\n').map(l=>l.trim()).filter(l=>l);
+  const resultBox = document.getElementById('lt-bulk-result');
+  if(!lines.length){ resultBox.innerHTML = '<span style="color:var(--burgundy)">Paste at least one line first.</span>'; return; }
+  let added = 0, failed = 0;
+  for(const line of lines){
+    const idx = line.indexOf(',');
+    const num = (idx===-1?line:line.slice(0,idx)).trim();
+    const name = idx===-1?'':line.slice(idx+1).trim();
+    if(!num){ failed++; continue; }
+    try{ await db.collection('lots').doc(num).set({ name, type }); added++; }catch(e){ failed++; }
+  }
+  resultBox.innerHTML = `<span style="color:var(--forest)">Added ${added} lot(s).${failed?' '+failed+' line(s) failed.':''}</span>`;
+  document.getElementById('lt-bulk').value = '';
+});
+function renderLots(){
+  const entries = Object.entries(state.lots).sort((a,b)=>{
+    const an=parseFloat(a[0]), bn=parseFloat(b[0]);
+    if(!isNaN(an)&&!isNaN(bn)) return an-bn;
+    return a[0].localeCompare(b[0]);
+  });
+  const tbody = document.querySelector('#lt-table tbody');
+  tbody.innerHTML = entries.map(([num,l])=>
+    `<tr><td><span class="badge">${num}</span></td><td>${l.name||'<span style="color:var(--muted)">—</span>'}</td>
+     <td><span class="tag-${l.type==='silent'?'silent':'live'}">${l.type==='silent'?'Silent':'Live'}</span></td>
+     <td><button class="del-btn" onclick="deleteLot('${num}')">remove</button></td></tr>`
+  ).join('');
+  document.getElementById('lt-count').textContent = entries.length ? entries.length+' lot(s) pre-entered' : 'No lots entered yet';
+  if(!entries.length) tbody.innerHTML = '<tr><td colspan="4" class="empty">No lots pre-entered yet</td></tr>';
+}
+async function deleteLot(num){
+  if(!(await customConfirm('Remove lot '+num+' from the pre-entered list?'))) return;
+  try{ await db.collection('lots').doc(num).delete(); }catch(e){ handleWriteError(e); }
+}
+function wireLotHint(lotInputId, lotNameInputId, hintId, type){
+  const lotInput = document.getElementById(lotInputId);
+  const nameInput = document.getElementById(lotNameInputId);
+  const hint = document.getElementById(hintId);
+  lotInput.addEventListener('input', ()=>{
+    const num = lotInput.value.trim();
+    const match = state.lots[num];
+    if(match && match.type === type){
+      nameInput.value = match.name || '';
+      hint.textContent = '✓ ' + (match.name || 'matched pre-entered lot');
+      hint.classList.add('found');
+    } else { hint.textContent = ''; hint.classList.remove('found'); }
+  });
+}
+
+// ---- LIVE ----
+wireLotHint('lv-lot','lv-lotname','lv-lot-hint','live');
+document.getElementById('lv-add').addEventListener('click', async ()=>{
+  const lot = document.getElementById('lv-lot').value.trim();
+  const lotname = document.getElementById('lv-lotname').value.trim();
+  const bidder = document.getElementById('lv-bidder').value.trim();
+  const amount = parseFloat(document.getElementById('lv-amount').value);
+  if(!lot || !bidder || isNaN(amount)){ showToast('Enter lot #, bidder #, and a valid amount.'); return; }
+  try{
+    await ensureBidderDoc(bidder);
+    await db.collection('live').add({ lot, lotname, bidder, amount, ts: Date.now() });
+    ['lv-lot','lv-lotname','lv-bidder','lv-amount'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('lv-lot-hint').textContent = '';
+    document.getElementById('lv-lot').focus();
+    showToast('Live sale recorded — Lot ' + lot, 'ok');
+  }catch(e){ handleWriteError(e); }
+});
+function renderLive(){
+  const tbody = document.querySelector('#lv-table tbody');
+  tbody.innerHTML = state.live.map(s=>
+    `<tr><td>${s.lot}${s.lotname?' — '+s.lotname:''}</td><td><span class="badge">${s.bidder}</span></td><td>${money(s.amount)}</td>
+     <td><button class="del-btn" onclick="deleteLive('${s.id}')">remove</button></td></tr>`
+  ).join('');
+  document.getElementById('lv-count').textContent = state.live.length ? state.live.length+' sale(s) recorded' : 'No live sales yet';
+  if(!state.live.length) tbody.innerHTML = '<tr><td colspan="4" class="empty">No live sales recorded yet</td></tr>';
+}
+async function deleteLive(id){ if(!(await customConfirm('Remove this sale?'))) return; try{ await db.collection('live').doc(id).delete(); }catch(e){ handleWriteError(e); } }
+
+// ---- SILENT ----
+wireLotHint('sl-lot','sl-lotname','sl-lot-hint','silent');
+document.getElementById('sl-add').addEventListener('click', async ()=>{
+  const lot = document.getElementById('sl-lot').value.trim();
+  const lotname = document.getElementById('sl-lotname').value.trim();
+  const bidder = document.getElementById('sl-bidder').value.trim();
+  const amount = parseFloat(document.getElementById('sl-amount').value);
+  if(!lot || !bidder || isNaN(amount)){ showToast('Enter lot #, bidder #, and a valid amount.'); return; }
+  try{
+    await ensureBidderDoc(bidder);
+    await db.collection('silent').add({ lot, lotname, bidder, amount, ts: Date.now() });
+    ['sl-lot','sl-lotname','sl-bidder','sl-amount'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('sl-lot-hint').textContent = '';
+    document.getElementById('sl-lot').focus();
+    showToast('Silent result recorded — Lot ' + lot, 'ok');
+  }catch(e){ handleWriteError(e); }
+});
+function renderSilent(){
+  const tbody = document.querySelector('#sl-table tbody');
+  tbody.innerHTML = state.silent.map(s=>
+    `<tr><td>${s.lot}${s.lotname?' — '+s.lotname:''}</td><td><span class="badge">${s.bidder}</span></td><td>${money(s.amount)}</td>
+     <td><button class="del-btn" onclick="deleteSilent('${s.id}')">remove</button></td></tr>`
+  ).join('');
+  document.getElementById('sl-count').textContent = state.silent.length ? state.silent.length+' result(s) recorded' : 'No silent results yet';
+  if(!state.silent.length) tbody.innerHTML = '<tr><td colspan="4" class="empty">No silent auction results yet</td></tr>';
+}
+async function deleteSilent(id){ if(!(await customConfirm('Remove this result?'))) return; try{ await db.collection('silent').doc(id).delete(); }catch(e){ handleWriteError(e); } }
+
+// ---- TOTALS / LOOKUP ----
+function bidderTotals(){
+  const totals = {};
+  Object.keys(state.bidders).forEach(num=> totals[num] = {name: state.bidders[num].name||'', paid: !!state.bidders[num].paid, live:0, silent:0});
+  state.live.forEach(s=>{ if(!totals[s.bidder]) totals[s.bidder] = {name:'', paid:false, live:0, silent:0}; totals[s.bidder].live += s.amount; });
+  state.silent.forEach(s=>{ if(!totals[s.bidder]) totals[s.bidder] = {name:'', paid:false, live:0, silent:0}; totals[s.bidder].silent += s.amount; });
+  return totals;
+}
+async function togglePaid(num, makePaid){
+  try{ await db.collection('bidders').doc(num).set({ paid: makePaid }, { merge: true }); }
+  catch(e){ handleWriteError(e); }
+}
+function renderTotals(){
+  const totals = bidderTotals();
+  const nums = Object.keys(totals).sort((a,b)=>Number(a)-Number(b));
+  const tbody = document.querySelector('#tot-table tbody');
+  tbody.innerHTML = nums.map(num=>{
+    const t = totals[num];
+    const payCell = t.paid
+      ? `<span class="tag-paid">Paid</span> <button class="pay-btn mark-unpaid" onclick="togglePaid('${num}', false)">Undo</button>`
+      : `<span class="tag-unpaid">Unpaid</span> <button class="pay-btn mark-paid" onclick="togglePaid('${num}', true)">Mark Paid</button>`;
+    return `<tr><td><span class="badge">${num}</span></td><td>${t.name||'<span style="color:var(--muted)">—</span>'}</td>
+      <td>${money(t.live)}</td><td>${money(t.silent)}</td><td><strong>${money(t.live+t.silent)}</strong></td><td>${payCell}</td></tr>`;
+  }).join('');
+  if(!nums.length) tbody.innerHTML = '<tr><td colspan="6" class="empty">No bids recorded yet</td></tr>';
+  let grand = 0; state.live.forEach(s=>grand+=s.amount); state.silent.forEach(s=>grand+=s.amount);
+  document.getElementById('stat-bidders').textContent = Object.keys(state.bidders).length;
+  document.getElementById('stat-lots').textContent = state.live.length + state.silent.length;
+  document.getElementById('stat-total').textContent = money(grand).replace('.00','');
+}
+document.getElementById('lk-search').addEventListener('click', doLookup);
+document.getElementById('lk-number').addEventListener('keydown', e=>{ if(e.key==='Enter') doLookup(); });
+function doLookup(){
+  const num = document.getElementById('lk-number').value.trim();
+  const totals = bidderTotals();
+  const box = document.getElementById('lk-result');
+  if(!num || !totals[num]){ box.innerHTML = `<div class="lookup-result"><div>No record found for bidder #${num||'?'}.</div></div>`; return; }
+  const t = totals[num];
+  const liveLots = state.live.filter(s=>s.bidder===num);
+  const silentLots = state.silent.filter(s=>s.bidder===num);
+  let itemsHtml = '';
+  liveLots.forEach(s=> itemsHtml += `<div class="line"><span>Live — Lot ${s.lot}${s.lotname?' ('+s.lotname+')':''}</span><span>${money(s.amount)}</span></div>`);
+  silentLots.forEach(s=> itemsHtml += `<div class="line"><span>Silent — Lot ${s.lot}${s.lotname?' ('+s.lotname+')':''}</span><span>${money(s.amount)}</span></div>`);
+  const payRow = t.paid
+    ? `<span class="tag-paid">Paid</span> <button class="pay-btn mark-unpaid" onclick="togglePaid('${num}', false); doLookup();">Undo</button>`
+    : `<span class="tag-unpaid">Unpaid</span> <button class="pay-btn mark-paid" onclick="togglePaid('${num}', true); doLookup();">Mark Paid</button>`;
+  box.innerHTML = `<div class="lookup-result">
+    <div style="opacity:0.8;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">Bidder #${num} ${t.name?'— '+t.name:''}</div>
+    <div class="grand">${money(t.live+t.silent)}</div>
+    <div style="margin-bottom:10px;">${payRow}</div>
+    ${itemsHtml || '<div class="line"><span>No lots yet</span><span></span></div>'}
+  </div>`;
+}
+
+// ---- EXPORT ----
+function downloadCSV(filename, rows){
+  const csv = rows.map(r=> r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+document.getElementById('ex-totals').addEventListener('click', ()=>{
+  const totals = bidderTotals();
+  const rows = [['Bidder #','Name','Live Total','Silent Total','Grand Total']];
+  Object.keys(totals).sort((a,b)=>Number(a)-Number(b)).forEach(num=>{
+    const t = totals[num]; rows.push([num, t.name, t.live.toFixed(2), t.silent.toFixed(2), (t.live+t.silent).toFixed(2)]);
+  });
+  downloadCSV('LOUB_bidder_totals.csv', rows);
+});
+document.getElementById('ex-live').addEventListener('click', ()=>{
+  const rows = [['Lot','Lot Name','Bidder #','Amount']];
+  state.live.forEach(s=> rows.push([s.lot, s.lotname, s.bidder, s.amount.toFixed(2)]));
+  downloadCSV('LOUB_live_auction.csv', rows);
+});
+document.getElementById('ex-silent').addEventListener('click', ()=>{
+  const rows = [['Lot','Lot Name','Bidder #','Amount']];
+  state.silent.forEach(s=> rows.push([s.lot, s.lotname, s.bidder, s.amount.toFixed(2)]));
+  downloadCSV('LOUB_silent_auction.csv', rows);
+});
+document.getElementById('reset-all').addEventListener('click', async ()=>{
+  if(!(await customConfirm('This permanently erases ALL bidders, lots, and sales for EVERYONE viewing this page. This cannot be undone. Continue?'))) return;
+  try{
+    const allDeletes = [];
+    Object.keys(state.bidders).forEach(num=> allDeletes.push(db.collection('bidders').doc(num).delete()));
+    state.live.forEach(s=> allDeletes.push(db.collection('live').doc(s.id).delete()));
+    state.silent.forEach(s=> allDeletes.push(db.collection('silent').doc(s.id).delete()));
+    Object.keys(state.lots).forEach(num=> allDeletes.push(db.collection('lots').doc(num).delete()));
+    await Promise.all(allDeletes);
+    showToast('All data cleared.', 'ok');
+  }catch(e){ handleWriteError(e); }
+});
+
+function renderAll(){ renderCheckin(); renderLots(); renderLive(); renderSilent(); renderTotals(); }
+init();
+</script>
+</body>
+</html>
